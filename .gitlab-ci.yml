@@ -1,5 +1,5 @@
 variables:
-  IMAGE_NAME: tayeb517/demo-app
+  IMAGE_NAME: tayeb517/juice-shop
   IMAGE_TAG: juice-shop-1.1
 
 stages:
@@ -8,10 +8,10 @@ stages:
   - build
 
 create_cache:
-  image: node:20-bullseye
+  image: node:18-bullseye   # ✅ Node compatible
   stage: cache
   script:
-    - yarn install
+    - yarn install --ignore-engines
   cache:
     key:
       files:
@@ -23,11 +23,11 @@ create_cache:
     policy: pull-push
 
 yarn_test:
-  image: node:20-bullseye
+  image: node:18-bullseye   # ✅ Correction ici aussi
   stage: test
   script:
     - yarn install --ignore-engines
-    - yarn --ignore-engines run test
+    - yarn test --ignore-engines
   cache:
     key:
       files:
