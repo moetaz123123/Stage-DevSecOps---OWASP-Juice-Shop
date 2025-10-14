@@ -2,11 +2,21 @@ FROM node:18 as installer
 COPY . /juice-shop
 WORKDIR /juice-shop
 
+# Installer typescript et ts-node globalement
 RUN npm i -g typescript ts-node
+
+# Patch pour corriger l'erreur express-jwt avant l'installation
+RUN sed -i "s/expressJwt({ secret: publicKey })/expressJwt({ secret: publicKey, algorithms: ['RS256'] })/g" lib/insecurity.ts || true
+RUN sed -i "s/expressJwt({ secret: '' + Math.random() })/expressJwt({ secret: '' + Math.random(), algorithms: ['RS256'] })/g" lib/insecurity.ts || true
+
+# Installer toutes les dépendances
 RUN npm install --unsafe-perm
 
 # Installer feature-policy explicitement si manquant
 RUN npm install feature-policy --save
+
+# Rebuild le projet après les modifications
+RUN npm run build || true
 
 RUN npm dedupe
 RUN rm -rf frontend/node_modules
