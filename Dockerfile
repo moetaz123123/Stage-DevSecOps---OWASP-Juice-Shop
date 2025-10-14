@@ -2,7 +2,7 @@ FROM node:18 as installer
 COPY . /juice-shop
 WORKDIR /juice-shop
 RUN npm i -g typescript ts-node
-RUN npm install --omit=dev --unsafe-perm
+RUN npm install --unsafe-perm
 RUN npm dedupe
 RUN rm -rf frontend/node_modules
 RUN rm -rf frontend/.angular
@@ -20,4 +20,4 @@ WORKDIR /juice-shop
 COPY --from=installer --chown=65532:0 /juice-shop .
 USER 65532
 EXPOSE 3000
-CMD ["/juice-shop/build/app.js"]
+CMD ["node", "/juice-shop/build/app.js"]
