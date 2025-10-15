@@ -1,14 +1,17 @@
 variables:
   IMAGE_NAME: tayeb517/juice-shop
   IMAGE_TAG: juice-shop-1.1
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Cache SonarCloud
+  GIT_DEPTH: "0"  # Shallow clones désactivés pour une meilleure analyse
 
 stages:
   - cache
   - test
+  - quality  # 🆕 Nouveau stage pour SonarCloud
   - build
 
 create_cache:
-  image: node:18-bullseye   # ✅ Node compatible
+  image: node:18-bullseye
   stage: cache
   script:
     - yarn install --ignore-engines
@@ -23,7 +26,7 @@ create_cache:
     policy: pull-push
 
 yarn_test:
-  image: node:18-bullseye   # ✅ Correction ici aussi
+  image: node:18-bullseye
   stage: test
   script:
     - yarn install --ignore-engines
@@ -37,6 +40,53 @@ yarn_test:
       - yarn.lock
       - .yarn
     policy: pull
+  artifacts:
+    paths:
+      - coverage/  # 🆕 Pour envoyer la couverture de code à SonarCloud
+    expire_in: 1 hour
+
+gitleaks:
+  stage: test
+  image:
+    name: zricethezav/gitleaks
+    entrypoint: [""]
+  script:
+    - gitleaks detect --verbose --source .
+  allow_failure: true
+
+njsscan:
+  stage: test
+  image: python
+  before_script:
+    - pip3 install --upgrade njsscan
+  script:
+    - njsscan --exit-warning .
+  allow_failure: true
+
+semgrep:
+  stage: test
+  image: semgrep/semgrep
+  variables:
+    SEMGREP_RULES: p/javascript
+  script:
+    - semgrep ci
+  allow_failure: true
+
+# 🆕 Job SonarCloud
+sonarcloud:
+  stage: quality
+  image: 
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner
+  dependencies:
+    - yarn_test  # Récupère les artefacts de couverture
+
 
 build_image:
   stage: build
