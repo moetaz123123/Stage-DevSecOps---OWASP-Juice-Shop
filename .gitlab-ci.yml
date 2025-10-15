@@ -32,7 +32,7 @@ yarn_test:
   stage: test
   script:
     - yarn install --ignore-engines
-    - yarn test --ignore-engines
+    - yarn test --coverage
   cache:
     key:
       files:
@@ -44,8 +44,9 @@ yarn_test:
     policy: pull
   artifacts:
     paths:
-      - coverage/      # Pour SonarCloud
+      - coverage/
     expire_in: 1 hour
+
 
 gitleaks:
   stage: test
@@ -58,12 +59,13 @@ gitleaks:
 
 njsscan:
   stage: test
-  image: python
+  image: python:3.11
   before_script:
-    - pip3 install --upgrade njsscan
+    - pip install "njsscan==0.2.11"
   script:
     - njsscan --exit-warning .
   allow_failure: true
+
 
 semgrep:
   stage: test
