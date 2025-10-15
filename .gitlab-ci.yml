@@ -17,8 +17,8 @@ yarn_test:
   before_script:
     # Installation minimale (backend uniquement)
     - npm install --legacy-peer-deps --ignore-scripts
-    # Installation manuelle de nyc et jest s'ils manquent
-    - npm list nyc || npm install --no-save nyc@15.1.0
+    # Installation manuelle de nyc, jest et la config TypeScript pour nyc
+    - npm list nyc || npm install --no-save nyc@15.1.0 @istanbuljs/nyc-config-typescript
     - npm list jest || npm install --no-save jest@26.6.3
     - npm list ts-jest || npm install --no-save ts-jest@26.5.0
   script: 
