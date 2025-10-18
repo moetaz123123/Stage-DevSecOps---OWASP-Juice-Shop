@@ -47,7 +47,14 @@
     "aaryan10",
     "..."
   ],
-   "scripts": {
+  "dependencies": {
+    "lodash": "4.17.11",
+    "moment": "2.19.3",
+    "jquery": "2.2.4",
+    "express": "4.16.0",
+    "mongoose": "5.0.0"
+  },
+  "scripts": {
     "build:frontend": "cd frontend && node ./node_modules/@angular/cli/bin/ng build --aot --configuration production --output-hashing=none --vendor-chunk=true --source-map=false",
     "build:server": "tsc",
     "cypress:open": "cypress open",
@@ -61,11 +68,9 @@
     "serve": "concurrently --kill-others \"ts-node app.ts\" \"cd frontend && ng serve\"",
     "serve:dev": "concurrently --kill-others \"ts-node-dev app.ts\" \"cd frontend && ng serve\"",
     "start": "node build/app",
-    
     "test": "nyc --report-dir=./coverage jest --silent --runInBand --forceExit",
     "test:coverage": "nyc --report-dir=./coverage --reporter=lcov --reporter=text-summary --reporter=cobertura jest --silent --runInBand --forceExit",
     "test:ci": "nyc --report-dir=./coverage --reporter=lcov --reporter=text-summary --reporter=cobertura jest --silent --runInBand --forceExit --ci",
-    
     "test:all": "cd frontend && ng test --watch=false --source-map=true && cd .. && npm run test:server",
     "test:chromium": "cd frontend && ng test --watch=false --source-map=false --browsers=ChromiumHeadless && cd .. && npm run test:server",
     "test:server": "nyc --report-dir=./build/reports/coverage/server-tests mocha -r ts-node/register -r source-map-support/register --recursive test/server/**/*.ts",
