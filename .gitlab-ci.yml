@@ -103,32 +103,25 @@ build_image:
   after_script:
     - echo "BUILT_IMAGE=$IMAGE_NAME:$IMAGE_TAG" > build.env
 
-# Nouveau job Trivy pour scanner l'image Docker
 trivy_scan:
   stage: scan
-  image: 
-    name: aquasec/trivy:latest
-    entrypoint: [""]
+  image: docker:24
+  services:
+    - docker:24-dind
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-  services:
-    - docker:24-dind
+    TRIVY_VERSION: "0.48.3"
   before_script:
+    # Install Trivy in Docker image
+    - apk add --no-cache curl
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
     - echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
   script:
-    # Pull l'image depuis Docker Hub
     - docker pull $IMAGE_NAME:$IMAGE_TAG
-    
-    # Scan de vulnérabilités (format table pour console)
-    - echo "🔍 Scanning image for vulnerabilities..."
     - trivy image --severity HIGH,CRITICAL $IMAGE_NAME:$IMAGE_TAG
-    
-    # Génération des rapports
     - trivy image --format json --output trivy-report.json $IMAGE_NAME:$IMAGE_TAG
     - trivy image --format sarif --output trivy-report.sarif $IMAGE_NAME:$IMAGE_TAG
-    
-    # Scan avec exit code (fail si vulnérabilités critiques)
     - trivy image --exit-code 0 --severity HIGH,CRITICAL $IMAGE_NAME:$IMAGE_TAG
   artifacts:
     paths:
@@ -139,4 +132,4 @@ trivy_scan:
       container_scanning: trivy-report.json
   dependencies:
     - build_image
-  allow_failure: true  # Ne bloque pas le pipeline même si des vulnérabilités sont trouvées
+  allow_failure: true
