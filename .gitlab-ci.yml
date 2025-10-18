@@ -1,6 +1,6 @@
 variables:
   IMAGE_NAME: tayeb517/juice-shop
-  IMAGE_TAG: juice-shop-1.2
+  IMAGE_TAG: juice-shop-1.1
 
 stages:
   - cache
