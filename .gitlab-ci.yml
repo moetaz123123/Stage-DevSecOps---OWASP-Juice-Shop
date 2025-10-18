@@ -5,13 +5,15 @@ variables:
 stages:
   - cache
   - test
+  - sast
   - build
+  
 
 create_cache:
   image: node:18-bullseye
   stage: cache
   script:
-    - yarn install
+    - yarn install --ignore-engines
   cache:
     key:
       files:
@@ -26,8 +28,8 @@ yarn_test:
   image: node:18-bullseye
   stage: test
   script:
-    - yarn install
-    - yarn test
+    - yarn install --ignore-engines
+    - yarn test --ignore-engines
   cache:
     key:
       files:
@@ -38,6 +40,61 @@ yarn_test:
       - .yarn
     policy: pull
 
+sonarqube_sast:
+  stage: sast
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  cache:
+    key: "sonar"
+    paths:
+      - .sonar/cache
+  script:
+    - echo "Using SONAR_TOKEN from GitLab CI variables"
+    - sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="touzabenameur34_devops" -Dsonar.organization="touzabenameur34"
+  artifacts:
+    paths:
+      - .scannerwork/
+    expire_in: 7 days
+  only:
+    - branches
+    - merge_requests
+
+semgrep_sast:
+  stage: sast
+  image: returntocorp/semgrep
+  script:
+    - semgrep --config=auto --json --output=semgrep-report.json . || true
+    - semgrep --config=auto --severity=ERROR --severity=WARNING .
+  artifacts:
+    paths:
+      - semgrep-report.json
+    expire_in: 7 days
+    reports:
+      sast: semgrep-report.json
+  allow_failure: true
+
+npm_audit:
+  stage: sast
+  image: node:18-bullseye
+  script:
+    - yarn install --ignore-engines
+    - echo "Running npm audit..."
+    - npm audit --json > npm-audit-report.json || true
+    - npm audit --audit-level=moderate || true
+  artifacts:
+    paths:
+      - npm-audit-report.json
+    expire_in: 7 days
+  cache:
+    key:
+      files:
+        - yarn.lock
+    paths:
+      - node_modules/
+    policy: pull
+  allow_failure: true
+
 build_image:
   stage: build
   image: docker:24
@@ -46,8 +103,17 @@ build_image:
   variables:
     DOCKER_PASS: $DOCKER_PASS
     DOCKER_USER: $DOCKER_USER
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   before_script:
     - echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
   script:
     - docker build -t $IMAGE_NAME:$IMAGE_TAG .
     - docker push $IMAGE_NAME:$IMAGE_TAG
+  artifacts:
+    expire_in: 1 day
+    reports:
+      dotenv: build.env
+  after_script:
+    - echo "BUILT_IMAGE=$IMAGE_NAME:$IMAGE_TAG" > build.env
+
