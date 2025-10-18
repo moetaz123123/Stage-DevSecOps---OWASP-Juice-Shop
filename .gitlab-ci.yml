@@ -126,8 +126,6 @@ trivy_scan:
     - build_image
   allow_failure: true
 
-# ==================== DAST JOBS CORRIGÉS ====================
-
 zap_dast:
   stage: dast
   image: docker:24
@@ -142,57 +140,32 @@ zap_dast:
   script:
     - echo "Pulling Juice Shop image..."
     - docker pull $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Starting Juice Shop application..."
     - docker run -d --name juice-shop-zap -p 3000:3000 $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Waiting for application to be ready..."
     - sleep 15
-    
-    # Vérification que le conteneur est toujours en cours d'exécution
-    - |
-      if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-zap)" != "true" ]; then
-        echo "ERROR: Container stopped unexpectedly!"
-        docker logs juice-shop-zap
-        exit 1
-      fi
-    
-    # Attente intelligente avec healthcheck
-    - |
-      echo "Testing application connectivity..."
-      for i in $(seq 1 30); do
-        if docker exec juice-shop-zap wget -q -O- http://localhost:3000 > /dev/null 2>&1; then
-          echo "✓ Application is ready!"
-          break
-        fi
-        echo "Waiting... ($i/30)"
-        sleep 2
-      done
-    
-    - echo "Final check - Container status:"
+    - if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-zap)" != "true" ]; then echo "ERROR - Container stopped!"; docker logs juice-shop-zap; exit 1; fi
+    - echo "Testing application connectivity..."
+    - for i in $(seq 1 30); do docker exec juice-shop-zap wget -q -O- http://localhost:3000 > /dev/null 2>&1 && echo "Application is ready!" && break || echo "Waiting... ($i/30)"; sleep 2; done
+    - echo "Final check - Container status"
     - docker ps | grep juice-shop-zap
     - docker logs --tail 20 juice-shop-zap
-    
     - echo "Running OWASP ZAP baseline scan..."
     - docker run --rm --link juice-shop-zap:target -v $(pwd):/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://target:3000 -r zap-report.html -J zap-report.json -I || true
-    
     - echo "Checking generated reports..."
-    - ls -lah zap-report.* || echo "WARNING: No ZAP reports found"
-    
+    - ls -lah zap-report.* || echo "WARNING - No ZAP reports found"
   after_script:
     - echo "=== Application Logs ==="
     - docker logs juice-shop-zap || true
     - echo "=== Cleanup ==="
     - docker stop juice-shop-zap || true
     - docker rm juice-shop-zap || true
-    
   artifacts:
     when: always
     paths:
       - zap-report.html
       - zap-report.json
     expire_in: 7 days
-    
   allow_failure: true
   needs:
     - build_image
@@ -211,58 +184,33 @@ nikto_dast:
   script:
     - echo "Pulling Juice Shop image..."
     - docker pull $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Starting Juice Shop application for Nikto scan..."
     - docker run -d --name juice-shop-nikto -p 3001:3000 $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Waiting for application to be ready..."
     - sleep 15
-    
-    # Vérification que le conteneur est en cours d'exécution
-    - |
-      if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-nikto)" != "true" ]; then
-        echo "ERROR: Container stopped unexpectedly!"
-        docker logs juice-shop-nikto
-        exit 1
-      fi
-    
-    # Attente intelligente avec healthcheck
-    - |
-      echo "Testing application connectivity..."
-      for i in $(seq 1 30); do
-        if docker exec juice-shop-nikto wget -q -O- http://localhost:3000 > /dev/null 2>&1; then
-          echo "✓ Application is ready!"
-          break
-        fi
-        echo "Waiting... ($i/30)"
-        sleep 2
-      done
-    
-    - echo "Final check - Container status:"
+    - if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-nikto)" != "true" ]; then echo "ERROR - Container stopped!"; docker logs juice-shop-nikto; exit 1; fi
+    - echo "Testing application connectivity..."
+    - for i in $(seq 1 30); do docker exec juice-shop-nikto wget -q -O- http://localhost:3000 > /dev/null 2>&1 && echo "Application is ready!" && break || echo "Waiting... ($i/30)"; sleep 2; done
+    - echo "Final check - Container status"
     - docker ps | grep juice-shop-nikto
     - docker logs --tail 20 juice-shop-nikto
-    
     - echo "Running Nikto web vulnerability scan..."
     - docker run --rm --link juice-shop-nikto:target -v $(pwd):/tmp secfigo/nikto:latest -h http://target:3000 -Format htm -output /tmp/nikto-report.html || true
     - docker run --rm --link juice-shop-nikto:target -v $(pwd):/tmp secfigo/nikto:latest -h http://target:3000 -Format json -output /tmp/nikto-report.json || true
-    
     - echo "Checking generated reports..."
-    - ls -lah nikto-report.* || echo "WARNING: No Nikto reports found"
-    
+    - ls -lah nikto-report.* || echo "WARNING - No Nikto reports found"
   after_script:
     - echo "=== Application Logs ==="
     - docker logs juice-shop-nikto || true
     - echo "=== Cleanup ==="
     - docker stop juice-shop-nikto || true
     - docker rm juice-shop-nikto || true
-    
   artifacts:
     when: always
     paths:
       - nikto-report.html
       - nikto-report.json
     expire_in: 7 days
-    
   allow_failure: true
   needs:
     - build_image
@@ -281,58 +229,33 @@ nuclei_dast:
   script:
     - echo "Pulling Juice Shop image..."
     - docker pull $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Starting Juice Shop application for Nuclei scan..."
     - docker run -d --name juice-shop-nuclei -p 3002:3000 $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Waiting for application to be ready..."
     - sleep 15
-    
-    # Vérification que le conteneur est en cours d'exécution
-    - |
-      if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-nuclei)" != "true" ]; then
-        echo "ERROR: Container stopped unexpectedly!"
-        docker logs juice-shop-nuclei
-        exit 1
-      fi
-    
-    # Attente intelligente avec healthcheck
-    - |
-      echo "Testing application connectivity..."
-      for i in $(seq 1 30); do
-        if docker exec juice-shop-nuclei wget -q -O- http://localhost:3000 > /dev/null 2>&1; then
-          echo "✓ Application is ready!"
-          break
-        fi
-        echo "Waiting... ($i/30)"
-        sleep 2
-      done
-    
-    - echo "Final check - Container status:"
+    - if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-nuclei)" != "true" ]; then echo "ERROR - Container stopped!"; docker logs juice-shop-nuclei; exit 1; fi
+    - echo "Testing application connectivity..."
+    - for i in $(seq 1 30); do docker exec juice-shop-nuclei wget -q -O- http://localhost:3000 > /dev/null 2>&1 && echo "Application is ready!" && break || echo "Waiting... ($i/30)"; sleep 2; done
+    - echo "Final check - Container status"
     - docker ps | grep juice-shop-nuclei
     - docker logs --tail 20 juice-shop-nuclei
-    
     - echo "Running Nuclei vulnerability scanner..."
     - docker run --rm --link juice-shop-nuclei:target -v $(pwd):/output projectdiscovery/nuclei:latest -u http://target:3000 -jsonl -o /output/nuclei-report.jsonl || true
     - docker run --rm --link juice-shop-nuclei:target -v $(pwd):/output projectdiscovery/nuclei:latest -u http://target:3000 -markdown-export /output/nuclei-report.md || true
-    
     - echo "Checking generated reports..."
-    - ls -lah nuclei-report.* || echo "WARNING: No Nuclei reports found"
-    
+    - ls -lah nuclei-report.* || echo "WARNING - No Nuclei reports found"
   after_script:
     - echo "=== Application Logs ==="
     - docker logs juice-shop-nuclei || true
     - echo "=== Cleanup ==="
     - docker stop juice-shop-nuclei || true
     - docker rm juice-shop-nuclei || true
-    
   artifacts:
     when: always
     paths:
       - nuclei-report.jsonl
       - nuclei-report.md
     expire_in: 7 days
-    
   allow_failure: true
   needs:
     - build_image
@@ -351,63 +274,28 @@ arachni_dast:
   script:
     - echo "Pulling Juice Shop image..."
     - docker pull $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Starting Juice Shop application for Arachni scan..."
     - docker run -d --name juice-shop-arachni -p 3003:3000 $IMAGE_NAME:$IMAGE_TAG
-    
     - echo "Waiting for application to be ready..."
     - sleep 15
-    
-    # Vérification que le conteneur est en cours d'exécution
-    - |
-      if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-arachni)" != "true" ]; then
-        echo "ERROR: Container stopped unexpectedly!"
-        docker logs juice-shop-arachni
-        exit 1
-      fi
-    
-    # Attente intelligente avec healthcheck
-    - |
-      echo "Testing application connectivity..."
-      for i in $(seq 1 30); do
-        if docker exec juice-shop-arachni wget -q -O- http://localhost:3000 > /dev/null 2>&1; then
-          echo "✓ Application is ready!"
-          break
-        fi
-        echo "Waiting... ($i/30)"
-        sleep 2
-      done
-    
-    - echo "Final check - Container status:"
+    - if [ "$(docker inspect -f '{{.State.Running}}' juice-shop-arachni)" != "true" ]; then echo "ERROR - Container stopped!"; docker logs juice-shop-arachni; exit 1; fi
+    - echo "Testing application connectivity..."
+    - for i in $(seq 1 30); do docker exec juice-shop-arachni wget -q -O- http://localhost:3000 > /dev/null 2>&1 && echo "Application is ready!" && break || echo "Waiting... ($i/30)"; sleep 2; done
+    - echo "Final check - Container status"
     - docker ps | grep juice-shop-arachni
     - docker logs --tail 20 juice-shop-arachni
-    
     - echo "Running Arachni web security scanner..."
-    # Scan avec génération directe des rapports HTML et JSON
     - docker run --rm --link juice-shop-arachni:target -v $(pwd):/arachni arachni/arachni:latest arachni http://target:3000 --checks=* --scope-include-subdomains --timeout=00:20:00 --report-save-path=/arachni/arachni-report.afr || true
-    
-    # Conversion des rapports (si le fichier .afr existe)
-    - |
-      if [ -f "arachni-report.afr" ]; then
-        echo "Converting Arachni report to HTML..."
-        docker run --rm -v $(pwd):/arachni arachni/arachni:latest /bin/bash -c "cd /usr/local/bin && ./arachni_reporter /arachni/arachni-report.afr --reporter=html:outfile=/arachni/arachni-report.html.zip" || echo "HTML conversion failed"
-        
-        echo "Converting Arachni report to JSON..."
-        docker run --rm -v $(pwd):/arachni arachni/arachni:latest /bin/bash -c "cd /usr/local/bin && ./arachni_reporter /arachni/arachni-report.afr --reporter=json:outfile=/arachni/arachni-report.json" || echo "JSON conversion failed"
-      else
-        echo "WARNING: arachni-report.afr not found, skipping report conversion"
-      fi
-    
+    - if [ -f "arachni-report.afr" ]; then echo "Converting to HTML..."; docker run --rm -v $(pwd):/arachni arachni/arachni:latest /bin/bash -c "cd /usr/local/bin && ./arachni_reporter /arachni/arachni-report.afr --reporter=html:outfile=/arachni/arachni-report.html.zip" || echo "HTML conversion failed"; fi
+    - if [ -f "arachni-report.afr" ]; then echo "Converting to JSON..."; docker run --rm -v $(pwd):/arachni arachni/arachni:latest /bin/bash -c "cd /usr/local/bin && ./arachni_reporter /arachni/arachni-report.afr --reporter=json:outfile=/arachni/arachni-report.json" || echo "JSON conversion failed"; fi
     - echo "Checking generated reports..."
-    - ls -lah arachni-report.* || echo "WARNING: No Arachni reports found"
-    
+    - ls -lah arachni-report.* || echo "WARNING - No Arachni reports found"
   after_script:
     - echo "=== Application Logs ==="
     - docker logs juice-shop-arachni || true
     - echo "=== Cleanup ==="
     - docker stop juice-shop-arachni || true
     - docker rm juice-shop-arachni || true
-    
   artifacts:
     when: always
     paths:
@@ -415,7 +303,6 @@ arachni_dast:
       - arachni-report.html.zip
       - arachni-report.json
     expire_in: 7 days
-    
   allow_failure: true
   needs:
     - build_image
