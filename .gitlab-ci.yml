@@ -41,8 +41,8 @@ sonarqube_sast:
     - sonar-scanner 
         -Dsonar.host.url="$SONAR_HOST_URL" 
         -Dsonar.token="$SONAR_TOKEN" 
-        -Dsonar.projectKey="hanaessghaier44_juice-shop" 
-        -Dsonar.organization="hanaessghaier44"
+        -Dsonar.projectKey="azizdaoues19_juice-shop" 
+        -Dsonar.organization="azizdaoues19"
   artifacts:
     paths:
       - .scannerwork/
